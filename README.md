@@ -6,7 +6,7 @@ Uma Skill da Alexa para você saber o que tem no cardápio da semana nos bandeij
 ### // TODO
 
 - [ ] Suporte a mais bandeijões
-- [ ] Suporte a período do dia. Ex: "café da manhã", "almoço", "janta" 
-- [ ] Suporte a outras palavras de tempo além de dias da semana. Ex: "Hoje", "Amanhã", "Ontem"
+- [x] Suporte a período do dia. Ex: "almoço", "janta"
+- [x] Suporte a palavra "hoje"
 - [ ] Adicionar testes unitários
 - [ ] Melhorar esse README 🤡
