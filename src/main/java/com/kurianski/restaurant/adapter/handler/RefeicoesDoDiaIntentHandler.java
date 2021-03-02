@@ -5,14 +5,20 @@ import com.amazon.ask.dispatcher.request.handler.RequestHandler;
 import com.amazon.ask.model.*;
 import com.amazon.ask.request.Predicates;
 import com.kurianski.restaurant.application.usecase.PegarRefeicaoDoDiaUseCaseImpl;
+import com.kurianski.restaurant.domain.Refeicao;
 import com.kurianski.restaurant.domain.RefeicoesDoDia;
 
 import java.time.DayOfWeek;
-import java.util.*;
+import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 public class RefeicoesDoDiaIntentHandler implements RequestHandler {
     private final PegarRefeicaoDoDiaUseCaseImpl pegarRefeicaoDoDiaUseCase;
     private static final String DIA_DA_SEMANA_KEY = "dia_semana";
+    private static final String TIPO_REFEICAO_KEY = "tipo_refeicao";
 
     public RefeicoesDoDiaIntentHandler() {
         pegarRefeicaoDoDiaUseCase = new PegarRefeicaoDoDiaUseCaseImpl();
@@ -27,25 +33,49 @@ public class RefeicoesDoDiaIntentHandler implements RequestHandler {
     public Optional<Response> handle(HandlerInput input) {
         Map<String, Slot> slots = this.extractSlots(input);
 
-        if (slots.containsKey(DIA_DA_SEMANA_KEY)) {
-            Slot diaSemanaSlot = slots.get(DIA_DA_SEMANA_KEY);
-            DayOfWeek diaSemana = this.getDayOfWeekFromString(diaSemanaSlot);
+        Slot diaSemanaSlot = slots.get(DIA_DA_SEMANA_KEY);
+        Slot tipoRefeicaoSlot = slots.get(TIPO_REFEICAO_KEY);
 
-            if (diaSemana != null) {
-                RefeicoesDoDia refeicoesDoDia = pegarRefeicaoDoDiaUseCase.execute(diaSemana);
+        DayOfWeek diaSemana = Optional.ofNullable(this.getDayOfWeekFromString(diaSemanaSlot))
+                                .orElse(DayOfWeek.from(LocalDate.now()));
 
-                StringBuilder resposta = new StringBuilder();
-                resposta.append("No almoço dessa ");
-                resposta.append(diaSemanaSlot.getValue());
-                resposta.append("-feira tem ");
-                resposta.append(refeicoesDoDia.getLunch().getMenu());
-                resposta.append(". O total de calorias é ");
-                resposta.append(refeicoesDoDia.getLunch().getCalories());
+        RefeicoesDoDia refeicoesDoDia = pegarRefeicaoDoDiaUseCase.execute(diaSemana);
 
-                return input.getResponseBuilder().withSpeech(resposta.toString()).build();
-            }
+        String resposta = this.buildResponse(diaSemanaSlot, tipoRefeicaoSlot, refeicoesDoDia);
+
+        return input.getResponseBuilder().withSpeech(resposta).build();
+    }
+
+    private String buildResponse(Slot diaSemanaSlot, Slot tipoRefeicao, RefeicoesDoDia refeicoesDoDia) {
+        StringBuilder resposta = new StringBuilder();
+        Refeicao refeicao;
+
+        if (
+            tipoRefeicao.getValue().equalsIgnoreCase("almoço") ||
+            tipoRefeicao.getValue().equalsIgnoreCase("almoçar")
+        ) {
+            resposta.append("No almoço ");
+            refeicao = refeicoesDoDia.getLunch();
+        } else {
+            resposta.append("Na janta ");
+            refeicao = refeicoesDoDia.getDinner();
         }
-        return input.getResponseBuilder().withSpeech("Não foi possível completar sua solicitação").build();
+
+        String diaDaSemana = diaSemanaSlot.getValue();
+
+        if(Objects.isNull(diaDaSemana))
+            resposta.append("de hoje ");
+        else {
+            resposta.append("dessa ");
+            resposta.append(diaDaSemana);
+            resposta.append("-feira tem ");
+        }
+
+        resposta.append(refeicao.getMenu());
+        resposta.append(". O total de calorias é ");
+        resposta.append(refeicao.getCalories());
+
+        return resposta.toString();
     }
 
     private Map<String, Slot> extractSlots(HandlerInput handlerInput) {
@@ -59,6 +89,7 @@ public class RefeicoesDoDiaIntentHandler implements RequestHandler {
     }
 
     private DayOfWeek getDayOfWeekFromString(Slot dayOfWeek) {
+        if(Objects.isNull(dayOfWeek.getValue())) return null;
         switch (dayOfWeek.getValue().toLowerCase()) {
             case "segunda":
             case "segunda-feira":
